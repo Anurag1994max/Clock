@@ -35,13 +35,14 @@
             z-index: 0;
         }
 
-        /* --- NEW: Floating Wrapper to prevent screen burn-in --- */
+        /* Floating Wrapper for vertical layout (Clock top, Date bottom) */
         .screensaver-content {
             position: relative;
             display: flex;
-            flex-direction: column;
+            flex-direction: column; /* Stacks items vertically */
             align-items: center;
-            gap: 60px; /* Space between clock and text */
+            justify-content: center;
+            gap: 50px; /* Space between the clock and the date */
             z-index: 10;
             /* Slow, random-looking floating animation */
             animation: floatAround 45s ease-in-out infinite alternate;
@@ -52,6 +53,35 @@
             33%  { transform: translate(4vw, 2vh); }
             66%  { transform: translate(-2vw, 4vh); }
             100% { transform: translate(3vw, -3vh); }
+        }
+
+        /* Information Panel Styling (Date & Alerts) */
+        .info-panel {
+            text-align: center; 
+            font-family: 'Share Tech Mono', monospace;
+            text-transform: uppercase;
+        }
+
+        .date-display {
+            font-size: 2rem;
+            color: #00ffcc;
+            letter-spacing: 5px;
+            text-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+        }
+
+        /* Status Alert Styling (Lunch and Punch Out) */
+        .status-alert {
+            display: none; /* Hidden by default */
+            margin-top: 20px;
+            font-size: 1.8rem;
+            letter-spacing: 3px;
+            font-weight: bold;
+            animation: warning-flash 1s infinite alternate;
+        }
+
+        @keyframes warning-flash {
+            0% { opacity: 1; filter: drop-shadow(0 0 15px currentColor); }
+            100% { opacity: 0.4; filter: drop-shadow(0 0 2px currentColor); }
         }
 
         /* The Classic Clock */
@@ -102,7 +132,7 @@
         }
 
         .brand-text .name {
-            font-size: 1.5rem;
+            font-size: 2rem;
             font-weight: bold;
             letter-spacing: 4px;
             font-family: Arial, sans-serif;
@@ -110,11 +140,10 @@
         }
 
         .brand-text .location {
-            font-size: 1rem;
-            font-weight: bold;
+            font-size: 0.75rem;
             letter-spacing: 3px;
             margin-top: 5px;
-            color: black;
+            color: #555;
             font-family: Arial, sans-serif;
         }
 
@@ -151,6 +180,7 @@
             background-color: #222;
         }
 
+        /* Clock Hands */
         .hand {
             position: absolute;
             bottom: 50%;
@@ -159,6 +189,8 @@
             border-radius: 10px 10px 0 0;
             z-index: 15;
             box-shadow: 5px 5px 10px rgba(0,0,0,0.3);
+            /* Adds a slight snappy transition to the tick */
+            transition: transform 0.05s cubic-bezier(0.4, 2.08, 0.55, 0.44);
         }
 
         .hour-hand { width: 10px; height: 110px; background: #111; margin-left: -5px; }
@@ -188,32 +220,6 @@
             background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 45%);
             pointer-events: none; z-index: 30;
         }
-
-        /* Information Panel Styling */
-        .info-panel {
-            text-align: center;
-            font-family: 'Share Tech Mono', monospace;
-            text-transform: uppercase;
-        }
-
-        .date-display {
-            font-size: 1.6rem;
-            color: #00ffcc;
-            letter-spacing: 4px;
-            margin-bottom: 15px;
-            text-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
-        }
-
-        .welcome-text {
-            font-size: 2rem;
-            color: #ffffff;
-            letter-spacing: 4px;
-            text-shadow: 
-                0 0 10px rgba(255, 255, 255, 0.3),
-                0 0 20px rgba(0, 150, 255, 0.6);
-            border-top: 1px solid rgba(255, 255, 255, 0.15);
-            padding-top: 15px;
-        }
     </style>
 </head>
 <body>
@@ -221,6 +227,7 @@
     <canvas id="space"></canvas>
 
     <div class="screensaver-content">
+        
         <div class="clock-container">
             <div class="clock-inner-rim" id="clockFace">
                 <div class="glass-glare"></div>
@@ -237,18 +244,19 @@
 
         <div class="info-panel">
             <div class="date-display" id="date">DAY | 00.00.0000</div>
-            
+            <div class="status-alert" id="statusAlert"></div>
         </div>
+
     </div>
 
     <script>
-        // Digital Space Background Logic (Calmer Speed)
+        // Digital Space Background Logic
         const canvas = document.getElementById('space');
         const ctx = canvas.getContext('2d');
         let width, height;
         let stars = [];
         const NUM_STARS = 350; 
-        const SPEED = 0.4; // Slower, calmer ambient drift
+        const SPEED = 0.4; 
 
         function resizeCanvas() {
             width = canvas.width = window.innerWidth;
@@ -266,7 +274,7 @@
         }
 
         function animateSpace() {
-            ctx.fillStyle = 'rgba(2, 3, 8, 0.4)'; // Deeper, darker space trail
+            ctx.fillStyle = 'rgba(2, 3, 8, 0.4)'; 
             ctx.fillRect(0, 0, width, height);
             
             const cx = width / 2;
@@ -285,7 +293,6 @@
                 const py = cy + (star.y / star.z) * cx;
                 const size = Math.max(0, (1 - star.z / width) * 2.2);
 
-                // Corporate blue star tint
                 ctx.fillStyle = 'rgba(150, 200, 255, 0.8)';
                 ctx.beginPath();
                 ctx.arc(px, py, size, 0, Math.PI * 2);
@@ -322,17 +329,25 @@
         const minuteHand = document.getElementById('minute');
         const secondHand = document.getElementById('second');
         const dateElement = document.getElementById('date');
+        const statusAlert = document.getElementById('statusAlert');
 
         function updateClock() {
             const now = new Date();
             const seconds = now.getSeconds();
             const minutes = now.getMinutes();
             const hours = now.getHours();
-            const milliseconds = now.getMilliseconds(); 
 
-            const secondsDegrees = (seconds * 6);
+            // Ticking second hand calculation (No Milliseconds)
+            const secondsDegrees = seconds * 6;
             const minutesDegrees = (minutes * 6) + (seconds * 0.1);
             const hoursDegrees = ((hours % 12) * 30) + (minutes * 0.5);
+
+            // Prevent the hand from spinning backward when transitioning from 59s to 0s
+            if (seconds === 0) {
+                secondHand.style.transition = 'none';
+            } else {
+                secondHand.style.transition = 'transform 0.05s cubic-bezier(0.4, 2.08, 0.55, 0.44)';
+            }
 
             secondHand.style.transform = `rotate(${secondsDegrees}deg)`;
             minuteHand.style.transform = `rotate(${minutesDegrees}deg)`;
@@ -345,10 +360,29 @@
             const yearStr = now.getFullYear();
             
             dateElement.innerText = `${dayName} | ${dayStr}.${monthStr}.${yearStr}`;
+
+            // --- Multi-Condition Alert Logic ---
+            // Lunch Time: 2 PM to 3 PM (14:00 - 14:59)
+            if (hours === 14) {
+                statusAlert.innerText = "LUNCH TIME!";
+                statusAlert.style.color = "#ffcc00"; // Glowing yellow
+                statusAlert.style.display = 'block';
+            } 
+            // Punch Out: 5 PM to 11 PM (17:00 - 23:59)
+            else if (hours >= 17 && hours <= 23) {
+                statusAlert.innerText = "DON'T FORGET TO PUNCH OUT!";
+                statusAlert.style.color = "#ff4d4d"; // Neon red
+                statusAlert.style.display = 'block';
+            } 
+            // Hidden during normal work hours
+            else {
+                statusAlert.style.display = 'none';
+            }
         }
 
         updateClock();
-        setInterval(updateClock, 16); 
+        // Updated interval to exactly 1 second (1000ms) for ticking effect
+        setInterval(updateClock, 1000); 
     </script>
 
 </body>
